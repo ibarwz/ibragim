@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+  <title>Тап-кликер (Мобильная версия)</title>
+  <style>
+    /* стили — без изменений */
+    body {
+      background: #fff8f0;
+      font-family: Arial, sans-serif;
+      color: #222;
+      text-align: center;
+      margin: 0;
+      padding: 20px 10px;
+      user-select: none;
+    }
+    #game {
+      background: #fdf5e6;
+      border-radius: 18px;
+      padding: 30px 20px;
+      box-shadow: 0 0 25px rgba(170, 140, 70, 0.25);
+      max-width: 480px;
+      margin: 0 auto;
+      position: relative;
+    }
+    h1, h2 {
+      margin: 0 0 20px;
+      font-weight: 700;
+    }
+    h1 {
+      font-size: 3rem;
+      color: #6b4c00;
+    }
+    h2 {
+      font-weight: 400;
+      font-size: 1.5rem;
+      color: #a6791f;
+      margin-bottom: 30px;
+    }
+    #score, #highscore {
+      color: #a6791f;
+    }
+    button {
+      display: block;
+      width: 90%;
+      max-width: 320px;
+      margin: 12px auto;
+      padding: 16px 0;
+      font-size: 1.4rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      user-select: none;
+      color: white;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+      box-shadow: none;
+      filter: grayscale(70%);
+      color: #ddd;
+    }
+    #tapButton {
+      font-size: 3.5rem;
+      padding: 28px 0;
+      background-color: #2979ff;
+    }
+    #upgradeButton {
+      background-color: #43a047;
+    }
+    #autoClickerButton {
+      background-color: #f57c00;
+    }
+    #resetScoreButton {
+      background-color: #d32f2f;
+    }
+    #resetAllButton {
+      background-color: #6a1b9a;
+    }
+    #message {
+      height: 26px;
+      font-weight: 600;
+      margin-top: 20px;
+      min-height: 26px;
+      color: #6b4c00;
+    }
+    .floating-points {
+      position: absolute;
+      font-weight: 700;
+      font-size: 1.8rem;
+      pointer-events: none;
+      animation: floatUp 1.5s ease forwards;
+    }
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-60px) scale(1.3); }
+    }
+    #leaderboard {
+      margin-top: 40px;
+      background: #fff3e0;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.1);
+    }
+    #leaderboard h3 {
+      margin: 0 0 10px;
+      font-size: 1.2rem;
+      color: #6b4c00;
+    }
+    #leaderboard ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #leaderboard li {
+      font-weight: 600;
+      color: #a6791f;
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+<div id="game">
+  <h1>Очки: <span id="score">0</span></h1>
+  <h2>Рекорд: <span id="highscore">0</span></h2>
+
+  <button id="tapButton" onclick="tap(event)">Тап</button>
+  <button id="upgradeButton" onclick="buyUpgrade()">Улучшить тап (<span id="upgradeCost">50</span>)</button>
+  <button id="autoClickerButton" onclick="buyAutoClicker()">Купить автокликер (3000 очков)</button>
+  <button id="resetScoreButton" onclick="resetScore()">Обнулить очки</button>
+  <button id="resetAllButton" onclick="resetAll()">Обнулить всё</button>
+  <div id="message" aria-live="polite" role="status"></div>
+
+  <div id="leaderboard">
+    <h3>Рекорды других игроков</h3>
+    <ul>
+      <li>мировой рекорд:10000000</li>
+      <li>Игрок_123: 15200</li>
+      <li>МастерТапа: 13980</li>
+      <li>ЖмиБыстрее: 12640</li>
+      <li>дугыдгур: 11900</li>
+      <li>абзал: 10750</li>
+      <li>ибрагим:бесконечно</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  let score = parseInt(localStorage.getItem('score')) || 0;
+  let highscore = parseInt(localStorage.getItem('highscore')) || 0;
+  let tapPower = parseInt(localStorage.getItem('tapPower')) || 1;
+  let upgradeCost = parseInt(localStorage.getItem('upgradeCost')) || 50;
+  let autoClickerUsed = parseInt(localStorage.getItem('autoClickerUsed')) || 0;
+  let autoClickerActive = false;
+
+  const scoreEl = document.getElementById('score');
+  const highscoreEl = document.getElementById('highscore');
+  const upgradeCostEl = document.getElementById('upgradeCost');
+  const messageEl = document.getElementById('message');
+  const autoClickerButton = document.getElementById('autoClickerButton');
+
+  function saveGame() {
+    localStorage.setItem('score', score);
+    localStorage.setItem('highscore', highscore);
+    localStorage.setItem('tapPower', tapPower);
+    localStorage.setItem('upgradeCost', upgradeCost);
+    localStorage.setItem('autoClickerUsed', autoClickerUsed);
+  }
+
+  function updateUI() {
+    scoreEl.textContent = score;
+    highscoreEl.textContent = highscore;
+    upgradeCostEl.textContent = upgradeCost;
+    autoClickerButton.disabled = autoClickerActive || score < 3000 || autoClickerUsed >= 5;
+  }
+
+  function showMessage(text, color = '#6b4c00') {
+    messageEl.textContent = text;
+    messageEl.style.color = color;
+    setTimeout(() => {
+      if (messageEl.textContent === text) messageEl.textContent = '';
+    }, 3000);
+  }
+
+  function tap(event) {
+    score += tapPower;
+    if (score > highscore) {
+      highscore = score;
+      showMessage('Новый рекорд! 🎉');
+    }
+    updateUI();
+    saveGame();
+    if (event) {
+      const float = document.createElement('div');
+      float.className = 'floating-points';
+      float.textContent = `+${tapPower}`;
+      float.style.left = (event.clientX - event.target.getBoundingClientRect().left) + 'px';
+      float.style.top = (event.clientY - event.target.getBoundingClientRect().top) + 'px';
+      event.target.appendChild(float);
+      setTimeout(() => float.remove(), 1500);
+    }
+  }
+
+  function buyUpgrade() {
+    if (score >= upgradeCost) {
+      score -= upgradeCost;
+      tapPower++;
+      upgradeCost = Math.round(upgradeCost * 1.5);
+      showMessage(`Сила тапа: ${tapPower}`);
+      updateUI();
+      saveGame();
+    } else {
+      showMessage('Недостаточно очков', '#aa0000');
+    }
+  }
+
+  function startAutoClicker() {
+    autoClickerActive = true;
+    const interval = setInterval(() => {
+      score += 60;
+      if (score > highscore) {
+        highscore = score;
+        showMessage('Новый рекорд! 🎉');
+      }
+      updateUI();
+      saveGame();
+    }, 1000);
+    setTimeout(() => {
+      clearInterval(interval);
+      autoClickerActive = false;
+      updateUI();
+      saveGame();
+      showMessage('Автокликер завершён');
+    }, 180000); // 3 мин
+  }
+
+  function buyAutoClicker() {
+    if (autoClickerUsed >= 5) {
+      showMessage('Лимит автокликеров исчерпан', '#aa0000');
+      return;
+    }
+    if (score >= 3000 && !autoClickerActive) {
+      score -= 3000;
+      autoClickerUsed++;
+      showMessage(`Автокликер #${autoClickerUsed} запущен на 3 минуты`);
+      startAutoClicker();
+      updateUI();
+      saveGame();
+    } else {
+      showMessage('Недостаточно очков', '#aa0000');
+    }
+  }
+
+  function resetScore() {
+    score = 0;
+    showMessage('Очки сброшены');
+    updateUI();
+    saveGame();
+  }
+
+  function resetAll() {
+    score = 0;
+    highscore = 0;
+    tapPower = 1;
+    upgradeCost = 50;
+    autoClickerUsed = 0;
+    autoClickerActive = false;
+    showMessage('Всё обнулено');
+    updateUI();
+    saveGame();
+  }
+
+  updateUI();
+</script>
+</body>
+</html>
